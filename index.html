@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project Packer / Unpacker Tool</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Tajawal:wght@400;500;700;800&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background: #0a0e1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* Animated background */
+    .bg-animated {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.12) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 20%, rgba(16,185,129,0.10) 0%, transparent 60%),
+                  radial-gradient(ellipse at 50% 90%, rgba(59,130,246,0.08) 0%, transparent 60%);
+      animation: bgShift 10s ease-in-out infinite alternate;
+    }
+    @keyframes bgShift {
+      0%   { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    .container { position: relative; z-index: 1; }
+
+    /* Hero */
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 999px;
+      padding: 6px 18px;
+      font-size: 0.82rem;
+      color: #a5b4fc;
+      margin-bottom: 1.5rem;
+    }
+    .hero-badge span.dot {
+      width: 8px; height: 8px;
+      background: #6366f1;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    h1 .gradient-text {
+      background: linear-gradient(135deg, #6366f1, #22d3ee, #10b981);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Cards */
+    .feature-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(8px);
+    }
+    .feature-card:hover {
+      border-color: rgba(99,102,241,0.4);
+      background: rgba(99,102,241,0.06);
+      transform: translateY(-2px);
+    }
+
+    /* Code block */
+    .code-wrapper {
+      background: #0d1117;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 60px rgba(99,102,241,0.15);
+    }
+    .code-topbar {
+      background: #161b22;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .mac-dots { display: flex; gap: 6px; }
+    .mac-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+    }
+    .mac-dot.red   { background: #ff5f57; }
+    .mac-dot.yel   { background: #febc2e; }
+    .mac-dot.grn   { background: #28c840; }
+
+    pre {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      padding: 1.5rem 1.5rem 1.5rem 0;
+      overflow-x: auto;
+      max-height: 620px;
+      overflow-y: auto;
+      color: #e6edf3;
+      direction: ltr;
+      text-align: left;
+    }
+
+    /* Line numbers */
+    .code-table { width: 100%; border-collapse: collapse; }
+    .ln { 
+      color: #3d444d;
+      text-align: right;
+      padding: 0 16px 0 20px;
+      user-select: none;
+      min-width: 48px;
+      font-size: 0.72rem;
+      vertical-align: top;
+      padding-top: 1px;
+    }
+    .lc { 
+      padding-right: 16px;
+      white-space: pre;
+    }
+
+    /* Syntax highlighting classes */
+    .kw   { color: #ff7b72; }  /* keywords */
+    .fn   { color: #d2a8ff; }  /* function names */
+    .st   { color: #a5d6ff; }  /* strings */
+    .cm   { color: #8b949e; font-style: italic; } /* comments */
+    .nm   { color: #79c0ff; }  /* numbers / builtins */
+    .op   { color: #ff7b72; }  /* operators */
+    .pr   { color: #ffa657; }  /* print / special */
+    .de   { color: #e3b341; }  /* decorator */
+    .imp  { color: #ff7b72; }  /* import */
+    .cls  { color: #ffa657; }  /* class */
+    .var  { color: #e6edf3; }  /* variables */
+    .pth  { color: #56d364; }  /* path strings */
+    .ansi-g { color: #28c840; }
+    .ansi-c { color: #22d3ee; }
+    .ansi-y { color: #e3b341; }
+    .ansi-r { color: #ff5f57; }
+    .ansi-m { color: #d2a8ff; }
+    .ansi-b { color: #79c0ff; }
+
+    /* Copy button */
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99,102,241,0.2);
+      border: 1px solid rgba(99,102,241,0.4);
+      color: #a5b4fc;
+      padding: 6px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Tajawal', sans-serif;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover {
+      background: rgba(99,102,241,0.35);
+      border-color: #6366f1;
+      color: #c7d2fe;
+    }
+    .copy-btn.copied {
+      background: rgba(16,185,129,0.2);
+      border-color: rgba(16,185,129,0.5);
+      color: #6ee7b7;
+    }
+
+    /* Tab buttons */
+    .tab-btn {
+      padding: 10px 24px;
+      border-radius: 10px;
+      font-family: 'Tajawal', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.25s;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: white;
+      box-shadow: 0 4px 15px rgba(99,102,241,0.4);
+    }
+    .tab-btn:not(.active) {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.1);
+      color: #94a3b8;
+    }
+    .tab-btn:not(.active):hover {
+      background: rgba(255,255,255,0.09);
+      color: #cbd5e1;
+    }
+
+    /* Step cards */
+    .step-card {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 1.2rem 1.4rem;
+      transition: all 0.3s;
+    }
+    .step-card:hover {
+      border-color: rgba(99,102,241,0.3);
+      background: rgba(99,102,241,0.05);
+    }
+    .step-num {
+      min-width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: white;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+      flex-shrink: 0;
+    }
+
+    /* Terminal demo */
+    .terminal {
+      background: #0d1117;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .terminal-bar {
+      background: #161b22;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .terminal-body {
+      padding: 1.2rem 1.5rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      line-height: 1.9;
+      direction: ltr;
+      text-align: left;
+    }
+    .t-prompt { color: #6ee7b7; }
+    .t-cmd    { color: #e6edf3; }
+    .t-out    { color: #8b949e; }
+    .t-success { color: #28c840; }
+    .t-info   { color: #22d3ee; }
+    .t-warn   { color: #e3b341; }
+    .t-error  { color: #ff5f57; }
+    .t-title  { color: #d2a8ff; font-weight: 600; }
+
+    /* scrollbar */
+    pre::-webkit-scrollbar { width: 6px; height: 6px; }
+    pre::-webkit-scrollbar-track { background: #161b22; }
+    pre::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+    pre::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.4), transparent);
+      margin: 3rem 0;
+    }
+
+    /* Tooltip */
+    [data-tooltip] { position: relative; }
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      border: 1px solid rgba(99,102,241,0.3);
+      color: #e2e8f0;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      font-family: 'Tajawal', sans-serif;
+    }
+    [data-tooltip]:hover::after { opacity: 1; }
+  </style>
+</head>
+<body>
+<div class="bg-animated"></div>
+
+<div class="container max-w-5xl mx-auto px-4 py-10">
+
+  <!-- ===== HERO ===== -->
+  <div class="text-center mb-12">
+    <div class="flex justify-center mb-4">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        أداة Python جاهزة للتشغيل الفوري
+      </div>
+    </div>
+    <h1 class="text-4xl md:text-5xl font-extrabold mb-4 leading-tight">
+      <span class="gradient-text">Project Packer</span>
+      <span class="text-slate-400 text-3xl"> / </span>
+      <span class="gradient-text">Unpacker</span>
+    </h1>
+    <p class="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+      أداة برمجية متكاملة في ملف <span class="text-indigo-400 font-semibold">Python واحد</span> —
+      تجمّع كل ملفات مشروعك في نص واحد ضخم، وتعيد بناءها بدقة مطلقة.
+    </p>
+
+    <!-- Feature pills -->
+    <div class="flex flex-wrap justify-center gap-3 mt-6">
+      <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">🗂️ تجميع المشروع</span>
+      <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">🔧 تفكيك وإعادة البناء</span>
+      <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">🎨 واجهة ملونة تفاعلية</span>
+      <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-300">🛡️ معالجة أخطاء شاملة</span>
+      <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-500/15 border border-rose-500/30 text-rose-300">📁 هيكل شجري للمشروع</span>
+    </div>
+  </div>
+
+  <!-- ===== FEATURES GRID ===== -->
+  <div class="grid md:grid-cols-2 gap-4 mb-10">
+    <div class="feature-card">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-xl">📦</div>
+        <h3 class="text-base font-bold text-indigo-300">Pack Project — تجميع</h3>
+      </div>
+      <ul class="text-slate-400 text-sm space-y-1.5 leading-relaxed">
+        <li>✅ يقرأ جميع ملفات المشروع تلقائياً</li>
+        <li>✅ يتخطى <code class="text-amber-400 text-xs">node_modules</code>, <code class="text-amber-400 text-xs">.git</code>, <code class="text-amber-400 text-xs">dist</code>, <code class="text-amber-400 text-xs">.next</code>...</li>
+        <li>✅ يتخطى الصور والملفات المضغوطة والثنائية</li>
+        <li>✅ يكتب هيكل شجري كامل في أول الملف</li>
+        <li>✅ يسبق كل ملف بمساره الكامل كترويسة</li>
+        <li>✅ ينتج ملف <code class="text-emerald-400 text-xs">full_project_code.txt</code></li>
+      </ul>
+    </div>
+    <div class="feature-card">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl">🔓</div>
+        <h3 class="text-base font-bold text-emerald-300">Unpack Project — تفكيك</h3>
+      </div>
+      <ul class="text-slate-400 text-sm space-y-1.5 leading-relaxed">
+        <li>✅ يقرأ <code class="text-emerald-400 text-xs">full_project_code.txt</code> سطراً بسطر</li>
+        <li>✅ يستخرج مسار كل ملف من الترويسة</li>
+        <li>✅ ينشئ المجلدات الفرعية تلقائياً</li>
+        <li>✅ يُفرغ الكود بدقة مطلقة في كل ملف</li>
+        <li>✅ يعيد بناء المشروع بالكامل كما كان</li>
+        <li>✅ يُنبه عند وجود أخطاء دون توقف كامل</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ===== TABS ===== -->
+  <div class="flex gap-3 mb-6 flex-wrap">
+    <button class="tab-btn active" id="tab-code" onclick="showTab('code')">📄 الكود الكامل</button>
+    <button class="tab-btn" id="tab-demo" onclick="showTab('demo')">🖥️ معاينة التشغيل</button>
+    <button class="tab-btn" id="tab-guide" onclick="showTab('guide')">📖 دليل الاستخدام</button>
+  </div>
+
+  <!-- ===== TAB: CODE ===== -->
+  <div id="panel-code">
+    <div class="code-wrapper">
+      <div class="code-topbar">
+        <div class="flex items-center gap-3">
+          <div class="mac-dots">
+            <div class="mac-dot red"></div>
+            <div class="mac-dot yel"></div>
+            <div class="mac-dot grn"></div>
+          </div>
+          <span class="text-slate-500 text-xs font-mono">project_tool.py</span>
+        </div>
+        <button class="copy-btn" id="copyBtn" onclick="copyCode()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          نسخ الكود
+        </button>
+      </div>
+      <pre id="codeDisplay"><table class="code-table" id="codeTable"></table></pre>
+    </div>
+    <p class="text-center text-slate-500 text-xs mt-3">سكريبت Python واحد · متوافق مع Python 3.6+ · بدون مكتبات خارجية</p>
+  </div>
+
+  <!-- ===== TAB: DEMO ===== -->
+  <div id="panel-demo" class="hidden">
+    <div class="grid md:grid-cols-2 gap-5">
+      <!-- Pack demo -->
+      <div>
+        <h3 class="text-sm font-bold text-indigo-300 mb-3 flex items-center gap-2">
+          <span class="w-6 h-6 bg-indigo-500/20 rounded flex items-center justify-center text-xs">1</span>
+          تشغيل Pack Project
+        </h3>
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="mac-dots">
+              <div class="mac-dot red"></div><div class="mac-dot yel"></div><div class="mac-dot grn"></div>
+            </div>
+            <span class="text-slate-500 text-xs font-mono mr-2">Terminal</span>
+          </div>
+          <div class="terminal-body">
+<span class="t-prompt">$ </span><span class="t-cmd">python project_tool.py</span>
+<br>
+<span class="t-title">╔══════════════════════════════════════════╗</span>
+<span class="t-title">║      PROJECT PACKER / UNPACKER TOOL      ║</span>
+<span class="t-title">║            by Python Script              ║</span>
+<span class="t-title">╚══════════════════════════════════════════╝</span>
+<br>
+<span class="t-info">  [1] Pack Project   → Collect all files</span>
+<span class="t-info">  [2] Unpack Project → Rebuild from txt</span>
+<span class="t-out">  [0] Exit</span>
+<br>
+<span class="t-out">──────────────────────────────────────────</span>
+<span class="t-out">Enter your choice: </span><span class="t-cmd">1</span>
+<br>
+<span class="t-info">📂 Scanning project directory...</span>
+<span class="t-out">   ✓ Skipping: node_modules/</span>
+<span class="t-out">   ✓ Skipping: .git/</span>
+<span class="t-out">   ✓ Skipping: .next/</span>
+<br>
+<span class="t-out">   📄 src/index.js</span>
+<span class="t-out">   📄 src/components/Button.js</span>
+<span class="t-out">   📄 src/components/Header.js</span>
+<span class="t-out">   📄 src/utils/helpers.js</span>
+<span class="t-out">   📄 package.json</span>
+<span class="t-out">   📄 README.md</span>
+<br>
+<span class="t-success">✅  Pack complete!</span>
+<span class="t-success">    Output → full_project_code.txt</span>
+<span class="t-success">    Files packed: 6 | Size: 48.3 KB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unpack demo -->
+      <div>
+        <h3 class="text-sm font-bold text-emerald-300 mb-3 flex items-center gap-2">
+          <span class="w-6 h-6 bg-emerald-500/20 rounded flex items-center justify-center text-xs">2</span>
+          تشغيل Unpack Project
+        </h3>
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="mac-dots">
+              <div class="mac-dot red"></div><div class="mac-dot yel"></div><div class="mac-dot grn"></div>
+            </div>
+            <span class="text-slate-500 text-xs font-mono mr-2">Terminal</span>
+          </div>
+          <div class="terminal-body">
+<span class="t-prompt">$ </span><span class="t-cmd">python project_tool.py</span>
+<br>
+<span class="t-out">Enter your choice: </span><span class="t-cmd">2</span>
+<br>
+<span class="t-info">🔍 Looking for: full_project_code.txt</span>
+<span class="t-success">   ✓ Found! Size: 48.3 KB</span>
+<br>
+<span class="t-warn">⚠️  Target directory: ./unpacked_project</span>
+<span class="t-out">   Confirm? (yes/no): </span><span class="t-cmd">yes</span>
+<br>
+<span class="t-info">📦 Unpacking files...</span>
+<span class="t-out">   ✓ Created: src/</span>
+<span class="t-out">   📄 src/index.js</span>
+<span class="t-out">   📄 src/components/Button.js</span>
+<span class="t-out">   📄 src/components/Header.js</span>
+<span class="t-out">   📄 src/utils/helpers.js</span>
+<span class="t-out">   📄 package.json</span>
+<span class="t-out">   📄 README.md</span>
+<br>
+<span class="t-success">✅  Unpack complete!</span>
+<span class="t-success">    Files restored: 6</span>
+<span class="t-success">    Location → ./unpacked_project/</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output file preview -->
+    <div class="mt-5">
+      <h3 class="text-sm font-bold text-amber-300 mb-3 flex items-center gap-2">
+        <span>📄</span> مثال على محتوى full_project_code.txt
+      </h3>
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="mac-dots">
+            <div class="mac-dot red"></div><div class="mac-dot yel"></div><div class="mac-dot grn"></div>
+          </div>
+          <span class="text-slate-500 text-xs font-mono mr-2">full_project_code.txt</span>
+        </div>
+        <div class="terminal-body text-xs leading-loose">
+<span class="t-title">================================================================</span>
+<span class="t-title"> PROJECT: my-react-app  |  Packed: 2025-01-15 14:32:07</span>
+<span class="t-title">================================================================</span>
+<br>
+<span class="t-info">PROJECT STRUCTURE:</span>
+<span class="t-out">my-react-app/</span>
+<span class="t-out">├── src/</span>
+<span class="t-out">│   ├── index.js</span>
+<span class="t-out">│   ├── components/</span>
+<span class="t-out">│   │   ├── Button.js</span>
+<span class="t-out">│   │   └── Header.js</span>
+<span class="t-out">│   └── utils/</span>
+<span class="t-out">│       └── helpers.js</span>
+<span class="t-out">├── package.json</span>
+<span class="t-out">└── README.md</span>
+<br>
+<span class="t-title">================================================================</span>
+<span class="t-out">// File: src/index.js</span>
+<span class="t-title">================================================================</span>
+<span class="t-out">import React from 'react';</span>
+<span class="t-out">import ReactDOM from 'react-dom';</span>
+<span class="t-out">...</span>
+<br>
+<span class="t-title">================================================================</span>
+<span class="t-out">// File: src/components/Button.js</span>
+<span class="t-title">================================================================</span>
+<span class="t-out">const Button = ({ label }) => ...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: GUIDE ===== -->
+  <div id="panel-guide" class="hidden">
+    <div class="space-y-4">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div>
+          <h4 class="font-bold text-white mb-1">احفظ السكريبت في مجلد مشروعك</h4>
+          <p class="text-slate-400 text-sm">ضع ملف <code class="text-indigo-400">project_tool.py</code> في الجذر الرئيسي لمشروعك (Root Directory)، بجوار ملفات مثل <code class="text-amber-400">package.json</code> أو <code class="text-amber-400">requirements.txt</code>.</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div>
+          <h4 class="font-bold text-white mb-1">تأكد من وجود Python 3.6+</h4>
+          <p class="text-slate-400 text-sm">الأداة تعمل بدون أي مكتبات خارجية — تستخدم فقط <code class="text-emerald-400">os</code>, <code class="text-emerald-400">sys</code>, <code class="text-emerald-400">pathlib</code>, <code class="text-emerald-400">datetime</code>. تحقق بكتابة: <code class="text-cyan-400">python --version</code></p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <div>
+          <h4 class="font-bold text-white mb-1">شغّل الأداة</h4>
+          <p class="text-slate-400 text-sm mb-2">افتح Terminal في مجلد المشروع واكتب:</p>
+          <code class="block bg-slate-900 border border-slate-700 px-4 py-2 rounded-lg text-emerald-400 text-sm font-mono">python project_tool.py</code>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <div>
+          <h4 class="font-bold text-white mb-1">اختر العملية المطلوبة</h4>
+          <p class="text-slate-400 text-sm">ستظهر قائمة تفاعلية. اضغط <code class="text-indigo-400">1</code> للتجميع أو <code class="text-emerald-400">2</code> للتفكيك، ثم اضغط Enter.</p>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">5</div>
+        <div>
+          <h4 class="font-bold text-white mb-1">عدّل الملف النصي وأعد البناء</h4>
+          <p class="text-slate-400 text-sm">بعد التجميع، يمكنك فتح <code class="text-amber-400">full_project_code.txt</code> بأي محرر نصوص، تعديل الكود، ثم تشغيل الخيار 2 لإعادة بناء المشروع بالتعديلات الجديدة.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info boxes -->
+    <div class="grid md:grid-cols-2 gap-4 mt-6">
+      <div class="feature-card border-amber-500/20">
+        <h4 class="font-bold text-amber-300 mb-3 text-sm">📋 الملفات المُتخطاة تلقائياً</h4>
+        <div class="grid grid-cols-2 gap-1 text-xs">
+          <div class="space-y-1">
+            <p class="text-slate-400"><span class="text-rose-400">📁</span> node_modules/</p>
+            <p class="text-slate-400"><span class="text-rose-400">📁</span> .git/</p>
+            <p class="text-slate-400"><span class="text-rose-400">📁</span> .next/</p>
+            <p class="text-slate-400"><span class="text-rose-400">📁</span> dist/</p>
+            <p class="text-slate-400"><span class="text-rose-400">📁</span> build/</p>
+            <p class="text-slate-400"><span class="text-rose-400">📁</span> __pycache__/</p>
+            <p class="text-slate-400"><span class="text-rose-400">📁</span> .venv/ / venv/</p>
+            <p class="text-slate-400"><span class="text-rose-400">📁</span> .idea/ / .vscode/</p>
+          </div>
+          <div class="space-y-1">
+            <p class="text-slate-400"><span class="text-amber-400">🖼️</span> .png/.jpg/.gif/.svg</p>
+            <p class="text-slate-400"><span class="text-amber-400">🖼️</span> .ico/.webp/.bmp</p>
+            <p class="text-slate-400"><span class="text-amber-400">📦</span> .zip/.tar/.gz</p>
+            <p class="text-slate-400"><span class="text-amber-400">🔒</span> .bin/.exe/.dll</p>
+            <p class="text-slate-400"><span class="text-amber-400">🎵</span> .mp3/.mp4/.avi</p>
+            <p class="text-slate-400"><span class="text-amber-400">📊</span> .woff/.ttf/.otf</p>
+            <p class="text-slate-400"><span class="text-amber-400">📄</span> full_project_code.txt</p>
+            <p class="text-slate-400"><span class="text-amber-400">🐍</span> project_tool.py</p>
+          </div>
+        </div>
+      </div>
+      <div class="feature-card border-emerald-500/20">
+        <h4 class="font-bold text-emerald-300 mb-3 text-sm">⚙️ سيناريوهات الاستخدام</h4>
+        <div class="space-y-2 text-xs text-slate-400">
+          <div class="flex items-start gap-2">
+            <span class="text-emerald-400 mt-0.5">→</span>
+            <p><strong class="text-emerald-300">مع الذكاء الاصطناعي:</strong> جمّع المشروع وأرسل الملف لـ ChatGPT/Claude لمراجعة الكود</p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-cyan-400 mt-0.5">→</span>
+            <p><strong class="text-cyan-300">نقل المشاريع:</strong> أرسل ملفاً نصياً واحداً بدلاً من zip كامل</p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-indigo-400 mt-0.5">→</span>
+            <p><strong class="text-indigo-300">توثيق الكود:</strong> أبقِ نسخة مكثفة من المشروع لأغراض المراجعة</p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-amber-400 mt-0.5">→</span>
+            <p><strong class="text-amber-300">التعاون:</strong> شارك الكود مع فريقك بدون الحاجة لـ Git</p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-rose-400 mt-0.5">→</span>
+            <p><strong class="text-rose-300">النسخ الاحتياطي:</strong> احتفظ بنسخة نصية بسيطة من مشروعك</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Footer -->
+  <div class="text-center text-slate-600 text-sm pb-4">
+    <p>Python 3.6+ · No external dependencies · Single file script</p>
+    <p class="mt-1 text-slate-700">انسخ الكود، ضعه في مشروعك، شغّله — هكذا فقط! 🚀</p>
+  </div>
+
+</div>
+
+<textarea id="rawCode" class="hidden"></textarea>
+
+<script>
+// ======================================================
+// THE ACTUAL PYTHON CODE (stored in JS string)
+// ======================================================
+const PYTHON_CODE = `#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+╔══════════════════════════════════════════════════════════════╗
+║          PROJECT PACKER / UNPACKER TOOL                      ║
+║          Pack & Unpack your entire project in one txt file   ║
+║          Compatible with: Python 3.6+  |  No dependencies   ║
+╚══════════════════════════════════════════════════════════════╝
+"""
+
+import os
+import sys
+from pathlib import Path
+from datetime import datetime
+
+# ─────────────────────────────────────────────
+#  ANSI COLOR CODES (works on Linux/macOS/Win10+)
+# ─────────────────────────────────────────────
+class C:
+    RESET  = "\\033[0m"
+    BOLD   = "\\033[1m"
+    RED    = "\\033[91m"
+    GREEN  = "\\033[92m"
+    YELLOW = "\\033[93m"
+    BLUE   = "\\033[94m"
+    MAGENTA= "\\033[95m"
+    CYAN   = "\\033[96m"
+    WHITE  = "\\033[97m"
+    DIM    = "\\033[2m"
+
+def clr(text, color, bold=False):
+    """Apply ANSI color to text."""
+    b = C.BOLD if bold else ""
+    return f"{b}{color}{text}{C.RESET}"
+
+# ─────────────────────────────────────────────
+#  CONFIGURATION
+# ─────────────────────────────────────────────
+OUTPUT_FILE = "full_project_code.txt"
+SCRIPT_NAME = Path(__file__).name
+UNPACK_DIR  = "unpacked_project"
+
+# Folders to skip entirely
+SKIP_DIRS = {
+    "node_modules", ".git", ".next", "dist", "build",
+    "__pycache__", ".venv", "venv", "env", ".env",
+    ".idea", ".vscode", "coverage", ".cache", "tmp",
+    "temp", ".pytest_cache", "eggs", ".eggs",
+    "htmlcov", ".tox", "site-packages",
+}
+
+# File extensions to skip (binary / media / archives)
+SKIP_EXTENSIONS = {
+    # Images
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico",
+    ".svg", ".webp", ".tiff", ".tif", ".heic",
+    # Video & Audio
+    ".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv",
+    ".mp3", ".wav", ".ogg", ".aac", ".flac", ".m4a",
+    # Archives
+    ".zip", ".tar", ".gz", ".bz2", ".xz", ".rar",
+    ".7z", ".zst",
+    # Binaries & Executables
+    ".exe", ".dll", ".so", ".dylib", ".bin", ".obj",
+    ".o", ".a", ".lib", ".pyc", ".pyd",
+    # Fonts
+    ".woff", ".woff2", ".ttf", ".otf", ".eot",
+    # Databases
+    ".sqlite", ".sqlite3", ".db",
+    # Documents (optional — comment out if needed)
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx",
+    # Lock files (optional)
+    # ".lock",
+}
+
+# Files to skip by exact name
+SKIP_FILES = {
+    OUTPUT_FILE,
+    SCRIPT_NAME,
+    ".DS_Store",
+    "Thumbs.db",
+}
+
+FILE_SEPARATOR = "=" * 68
+FILE_HEADER_TAG = "// File: "
+
+# ─────────────────────────────────────────────
+#  HELPER FUNCTIONS
+# ─────────────────────────────────────────────
+def print_banner():
+    banner = f"""
+{clr('╔══════════════════════════════════════════════════════╗', C.CYAN, bold=True)}
+{clr('║', C.CYAN)}  {clr('PROJECT PACKER / UNPACKER TOOL', C.WHITE, bold=True)}{' ' * 22}{clr('║', C.CYAN)}
+{clr('║', C.CYAN)}  {clr('Pack → Modify → Unpack → Rebuild 🚀', C.MAGENTA)}{' ' * 17}{clr('║', C.CYAN)}
+{clr('╚══════════════════════════════════════════════════════╝', C.CYAN, bold=True)}"""
+    print(banner)
+
+def print_menu():
+    print(clr("\\n  Choose an operation:", C.WHITE, bold=True))
+    print(clr("  ─────────────────────────────────────────────", C.DIM))
+    print(f"  {clr('[1]', C.CYAN, bold=True)} {clr('Pack Project', C.WHITE, bold=True)}"
+          f"   {clr('→ Collect all files into one txt', C.DIM)}")
+    print(f"  {clr('[2]', C.GREEN, bold=True)} {clr('Unpack Project', C.WHITE, bold=True)}"
+          f" {clr('→ Rebuild project from txt file', C.DIM)}")
+    print(f"  {clr('[0]', C.RED,  bold=True)} {clr('Exit', C.WHITE, bold=True)}")
+    print(clr("  ─────────────────────────────────────────────", C.DIM))
+
+def get_project_root():
+    return Path.cwd()
+
+def should_skip_dir(name: str) -> bool:
+    return name in SKIP_DIRS or name.startswith(".")
+
+def should_skip_file(file_path: Path) -> bool:
+    if file_path.name in SKIP_FILES:
+        return True
+    if file_path.suffix.lower() in SKIP_EXTENSIONS:
+        return True
+    # Skip hidden files
+    if file_path.name.startswith("."):
+        return True
+    return False
+
+def format_size(size_bytes: int) -> str:
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 ** 2:
+        return f"{size_bytes / 1024:.1f} KB"
+    else:
+        return f"{size_bytes / (1024**2):.1f} MB"
+
+# ─────────────────────────────────────────────
+#  TREE BUILDER
+# ─────────────────────────────────────────────
+def build_tree(root: Path, prefix: str = "", is_last: bool = True) -> list:
+    lines = []
+    try:
+        entries = sorted(root.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
+    except PermissionError:
+        return lines
+
+    entries = [
+        e for e in entries
+        if not (e.is_dir() and should_skip_dir(e.name))
+        and not (e.is_file() and should_skip_file(e))
+    ]
+
+    for i, entry in enumerate(entries):
+        is_last_entry = (i == len(entries) - 1)
+        connector = "└── " if is_last_entry else "├── "
+        lines.append(prefix + connector + entry.name + ("/" if entry.is_dir() else ""))
+        if entry.is_dir():
+            extension = "    " if is_last_entry else "│   "
+            lines.extend(build_tree(entry, prefix + extension, is_last_entry))
+    return lines
+
+# ─────────────────────────────────────────────
+#  PACK — MODE 1
+# ─────────────────────────────────────────────
+def pack_project():
+    root = get_project_root()
+    project_name = root.name
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    output_path = root / OUTPUT_FILE
+
+    print(clr(f"\\n📂 Scanning: {root}", C.CYAN))
+    print(clr("   Building project tree...", C.DIM))
+
+    # Build tree
+    tree_lines = build_tree(root)
+    tree_str = f"{project_name}/\\n" + "\\n".join(tree_lines)
+
+    # Collect all files
+    all_files = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        # Remove skipped dirs in-place to prevent descent
+        dirnames[:] = [
+            d for d in sorted(dirnames)
+            if not should_skip_dir(d)
+        ]
+        for fname in sorted(filenames):
+            fpath = Path(dirpath) / fname
+            if not should_skip_file(fpath):
+                all_files.append(fpath)
+
+    if not all_files:
+        print(clr("⚠️  No files found to pack!", C.YELLOW))
+        return
+
+    print(clr(f"   Found {len(all_files)} file(s) to pack.", C.DIM))
+
+    # Write output file
+    total_size = 0
+    packed_count = 0
+    errors = []
+
+    try:
+        with open(output_path, "w", encoding="utf-8", errors="replace") as out:
+            # ── Header ──────────────────────────────────
+            out.write(FILE_SEPARATOR + "\\n")
+            out.write(f" PROJECT : {project_name}\\n")
+            out.write(f" PACKED  : {timestamp}\\n")
+            out.write(f" FILES   : {len(all_files)}\\n")
+            out.write(FILE_SEPARATOR + "\\n\\n")
+
+            # ── Project Tree ────────────────────────────
+            out.write("PROJECT STRUCTURE:\\n")
+            out.write(FILE_SEPARATOR + "\\n")
+            out.write(tree_str + "\\n")
+            out.write(FILE_SEPARATOR + "\\n\\n")
+
+            # ── File Contents ───────────────────────────
+            for fpath in all_files:
+                rel = fpath.relative_to(root)
+                rel_str = rel.as_posix()
+
+                try:
+                    content = fpath.read_text(encoding="utf-8", errors="replace")
+                    file_size = fpath.stat().st_size
+
+                    out.write(FILE_SEPARATOR + "\\n")
+                    out.write(f"{FILE_HEADER_TAG}{rel_str}\\n")
+                    out.write(FILE_SEPARATOR + "\\n")
+                    out.write(content)
+                    if not content.endswith("\\n"):
+                        out.write("\\n")
+                    out.write("\\n")
+
+                    total_size += file_size
+                    packed_count += 1
+                    print(f"   {clr('📄', C.BLUE)} {clr(rel_str, C.DIM)}"
+                          f"  {clr(format_size(file_size), C.YELLOW)}")
+
+                except Exception as e:
+                    errors.append((rel_str, str(e)))
+                    print(f"   {clr('⚠️  Skip (error):', C.YELLOW)} {rel_str} → {e}")
+
+    except IOError as e:
+        print(clr(f"\\n❌ Cannot write output file: {e}", C.RED, bold=True))
+        return
+
+    # ── Summary ────────────────────────────────────
+    print()
+    print(clr("  " + "─" * 50, C.DIM))
+    print(clr(f"  ✅  Pack complete!", C.GREEN, bold=True))
+    print(clr(f"  📄  Output  → {OUTPUT_FILE}", C.CYAN))
+    print(clr(f"  🗂️   Files   → {packed_count} packed", C.WHITE))
+    print(clr(f"  📦  Total   → {format_size(total_size)}", C.WHITE))
+    if errors:
+        print(clr(f"  ⚠️   Errors  → {len(errors)} file(s) skipped", C.YELLOW))
+    print(clr("  " + "─" * 50, C.DIM))
+
+# ─────────────────────────────────────────────
+#  UNPACK — MODE 2
+# ─────────────────────────────────────────────
+def unpack_project():
+    root = get_project_root()
+    source_path = root / OUTPUT_FILE
+
+    print(clr(f"\\n🔍 Looking for: {OUTPUT_FILE}", C.CYAN))
+
+    if not source_path.exists():
+        print(clr(f"\\n❌ File not found: {OUTPUT_FILE}", C.RED, bold=True))
+        print(clr(f"   Run Pack Project (option 1) first.", C.DIM))
+        return
+
+    file_size = format_size(source_path.stat().st_size)
+    print(clr(f"   ✓ Found! Size: {file_size}", C.GREEN))
+
+    # Ask for output directory
+    print(clr(f"\\n📁 Output directory: {clr(UNPACK_DIR, C.YELLOW)}", C.WHITE))
+    target_root = root / UNPACK_DIR
+
+    if target_root.exists():
+        print(clr(f"   ⚠️  Directory already exists — files will be overwritten!", C.YELLOW))
+
+    confirm = input(clr("   Proceed? (yes / no): ", C.WHITE)).strip().lower()
+    if confirm not in ("yes", "y"):
+        print(clr("   ✗ Cancelled.", C.RED))
+        return
+
+    # Parse and write files
+    restored_count = 0
+    errors = []
+    current_file_path = None
+    current_lines = []
+
+    def flush_file():
+        """Write buffered lines to the current file."""
+        nonlocal restored_count
+        if current_file_path is None:
+            return
+        try:
+            full_path = target_root / current_file_path
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            full_path.write_text("".join(current_lines), encoding="utf-8")
+            restored_count += 1
+            rel = Path(current_file_path).as_posix()
+            print(f"   {clr('📄', C.GREEN)} {clr(rel, C.DIM)}")
+        except Exception as e:
+            errors.append((str(current_file_path), str(e)))
+            print(clr(f"   ⚠️  Error writing {current_file_path}: {e}", C.YELLOW))
+
+    print(clr("\\n📦 Unpacking files...\\n", C.CYAN))
+
+    try:
+        with open(source_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.startswith(FILE_HEADER_TAG):
+                    # Save previous file
+                    flush_file()
+                    # Start new file
+                    rel_path_str = line[len(FILE_HEADER_TAG):].strip()
+                    current_file_path = rel_path_str
+                    current_lines = []
+                elif line.startswith("=" * 10):
+                    # Separator — skip
+                    continue
+                else:
+                    if current_file_path is not None:
+                        current_lines.append(line)
+
+        # Flush last file
+        flush_file()
+
+    except IOError as e:
+        print(clr(f"\\n❌ Cannot read {OUTPUT_FILE}: {e}", C.RED, bold=True))
+        return
+
+    # ── Summary ────────────────────────────────────
+    print()
+    print(clr("  " + "─" * 50, C.DIM))
+    print(clr(f"  ✅  Unpack complete!", C.GREEN, bold=True))
+    print(clr(f"  📁  Location → ./{UNPACK_DIR}/", C.CYAN))
+    print(clr(f"  🗂️   Restored → {restored_count} file(s)", C.WHITE))
+    if errors:
+        print(clr(f"  ⚠️   Errors  → {len(errors)} file(s) failed", C.YELLOW))
+        for fp, err in errors:
+            print(clr(f"       • {fp}: {err}", C.DIM))
+    print(clr("  " + "─" * 50, C.DIM))
+
+# ─────────────────────────────────────────────
+#  MAIN LOOP
+# ─────────────────────────────────────────────
+def main():
+    # Enable ANSI on Windows
+    if sys.platform == "win32":
+        os.system("")
+
+    print_banner()
+
+    while True:
+        print_menu()
+        try:
+            choice = input(clr("  → Enter your choice: ", C.WHITE, bold=True)).strip()
+        except (KeyboardInterrupt, EOFError):
+            print(clr("\\n\\n  Bye! 👋", C.CYAN))
+            sys.exit(0)
+
+        if choice == "1":
+            pack_project()
+        elif choice == "2":
+            unpack_project()
+        elif choice == "0":
+            print(clr("\\n  Bye! 👋\\n", C.CYAN))
+            sys.exit(0)
+        else:
+            print(clr("  ❌  Invalid choice. Please enter 1, 2, or 0.", C.RED))
+
+        print()
+        again = input(clr("  ↩  Return to menu? (Enter to continue / q to quit): ",
+                          C.DIM)).strip().lower()
+        if again in ("q", "quit", "exit", "0"):
+            print(clr("\\n  Bye! 👋\\n", C.CYAN))
+            sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+`;
+
+// ─────────────────────────────────────────
+// SYNTAX HIGHLIGHT
+// ─────────────────────────────────────────
+function highlightPython(code) {
+  const lines = code.split('\n');
+  let html = '';
+  lines.forEach((line, i) => {
+    const ln = i + 1;
+    html += `<tr><td class="ln">${ln}</td><td class="lc">${syntaxLine(line)}</td></tr>`;
+  });
+  return html;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function syntaxLine(line) {
+  // Full comment line
+  if (/^\s*#/.test(line)) return `<span class="cm">${esc(line)}</span>`;
+  // Docstring lines
+  if (/"""/.test(line)) return `<span class="cm">${esc(line)}</span>`;
+
+  let out = esc(line);
+
+  // inline comment
+  out = out.replace(/(#[^"']*)$/, '<span class="cm">$1</span>');
+
+  // strings f"..." or '...' or "..."
+  out = out.replace(/(f?&quot;[^&]*?&quot;|f?&#39;[^&#]*?&#39;)/g, '<span class="st">$1</span>');
+
+  // keywords
+  const kws = ['\\bdef\\b','\\bclass\\b','\\bif\\b','\\belif\\b','\\belse\\b','\\bfor\\b',
+    '\\bwhile\\b','\\breturn\\b','\\bimport\\b','\\bfrom\\b','\\bas\\b','\\bin\\b',
+    '\\bnot\\b','\\band\\b','\\bor\\b','\\bTrue\\b','\\bFalse\\b','\\bNone\\b',
+    '\\btry\\b','\\bexcept\\b','\\braise\\b','\\bwith\\b','\\bopen\\b','\\bbreak\\b',
+    '\\bcontinue\\b','\\bpass\\b','\\bglobal\\b','\\bnonlocal\\b','\\blambda\\b',
+    '\\byield\\b','\\bassert\\b','\\bdel\\b'];
+  kws.forEach(k => {
+    out = out.replace(new RegExp(k, 'g'), `<span class="kw">${k.replace(/\\\\b/g,'')}</span>`);
+  });
+
+  // function defs
+  out = out.replace(/(<span class="kw">def<\/span>\s+)(\w+)/g, '$1<span class="fn">$2</span>');
+  out = out.replace(/(<span class="kw">class<\/span>\s+)(\w+)/g, '$1<span class="cls">$2</span>');
+
+  // builtins / calls
+  out = out.replace(/\b(print|len|str|int|list|dict|set|tuple|range|sorted|enumerate|zip|map|filter|open|Path|os|sys)\b/g,
+    '<span class="nm">$1</span>');
+
+  // decorators
+  out = out.replace(/(@\w+)/g, '<span class="de">$1</span>');
+
+  // numbers
+  out = out.replace(/\b(\d+)\b/g, '<span class="nm">$1</span>');
+
+  return out;
+}
+
+// ─────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Store raw code for copying
+  document.getElementById('rawCode').value = PYTHON_CODE;
+
+  // Render highlighted code
+  const table = document.getElementById('codeTable');
+  table.innerHTML = highlightPython(PYTHON_CODE);
+});
+
+// ─────────────────────────────────────────
+// TAB SWITCHING
+// ─────────────────────────────────────────
+function showTab(name) {
+  ['code','demo','guide'].forEach(t => {
+    document.getElementById('panel-' + t).classList.toggle('hidden', t !== name);
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+  });
+}
+
+// ─────────────────────────────────────────
+// COPY CODE
+// ─────────────────────────────────────────
+function copyCode() {
+  const raw = document.getElementById('rawCode').value;
+  navigator.clipboard.writeText(raw).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.classList.add('copied');
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> تم النسخ!`;
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> نسخ الكود`;
+    }, 2500);
+  }).catch(() => {
+    // Fallback
+    const ta = document.getElementById('rawCode');
+    ta.classList.remove('hidden');
+    ta.select();
+    document.execCommand('copy');
+    ta.classList.add('hidden');
+  });
+}
+</script>
+</body>
+</html>
